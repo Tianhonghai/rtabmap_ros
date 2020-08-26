@@ -1,0 +1,41 @@
+<launch>
+  <!-- Arguments -->
+  <!-- <arg name="map_file" default="$(find kobuki_navigation)/maps/map2.yaml"/> -->
+  <arg name="move_forward_only" default="false"/>
+  <arg name="debug" default="false" />
+
+  <!-- Map server -->
+  <!-- <node pkg="map_server" name="map_server" type="map_server" args="$(arg map_file)"/> -->
+
+  <!-- AMCL -->
+  <!-- <include file="$(find kobuki_navigation)/launch/amcl.launch"/> -->
+
+  <!-- move_base -->
+  <include file="$(find kobuki_navigation)/launch/move_base.launch">
+    <arg name="move_forward_only" value="$(arg move_forward_only)"/>
+  </include>
+
+  <!-- nav volecity smoother -->
+  <node pkg="nodelet" type="nodelet" name="nav_vel_smoother" args="load yocs_velocity_smoother/VelocitySmootherNodelet velocity_nodelet_manager" respawn="true">
+    <rosparam file="$(find kobuki_navigation)/param/nav_smoother.yaml" command="load"/>
+    <remap from="~raw_cmd_vel" to="/move_base/raw_cmd_vel"/>
+    <remap from="~smooth_cmd_vel" to="cmd_vel_mux/nav"/>
+    <!-- Robot velocity feedbacks; use the one configured as base default -->
+    <remap from="~odometry" to="odom"/>
+    <remap from="~robot_cmd_vel" to="mobile_base/commands/velocity"/>
+  </node>  
+
+  <!-- safety controller, nowatime with bumper-->
+  <node pkg="nodelet" type="nodelet" name="kobuki_safety_controller" args="load kobuki_safety_controller/SafetyControllerNodelet velocity_nodelet_manager" respawn="true">
+    <remap from="kobuki_safety_controller/cmd_vel" to="cmd_vel_mux/safety_controller"/>
+    <remap from="kobuki_safety_controller/events/bumper" to="mobile_base/events/bumper"/>
+    <remap from="kobuki_safety_controller/events/cliff" to="mobile_base/events/cliff"/>
+    <remap from="kobuki_safety_controller/events/wheel_drop" to="mobile_base/events/wheel_drop"/>
+  </node>
+
+  <group if="$(arg debug)">
+    <node pkg="kobuki_navigation" type="getNetworkStatus.py" name="getNetworkStatus" output="screen" />
+    <!-- <node pkg="kobuki_navigation" type="getScanRate.py" name="getScanRate" output="screen" /> -->
+  </group>
+  
+</launch>
