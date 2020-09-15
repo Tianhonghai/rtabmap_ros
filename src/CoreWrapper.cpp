@@ -85,7 +85,7 @@ using namespace rtabmap;
 namespace rtabmap_ros {
 
 CoreWrapper::CoreWrapper() :
-		CommonDataSubscriber(false),
+		CommonDataSubscriber(false),//对父类进行实例，形参默认为false
 		paused_(false),
 		lastPose_(Transform::getIdentity()),
 		lastPoseIntermediate_(false),
@@ -145,14 +145,17 @@ void CoreWrapper::onInit()
 	pnh.param("map_frame_id",        mapFrameId_, mapFrameId_);
 	pnh.param("ground_truth_frame_id", groundTruthFrameId_, groundTruthFrameId_);
 	pnh.param("ground_truth_base_frame_id", groundTruthBaseFrameId_, frameId_);
+	// ????总为false
 	if(pnh.hasParam("depth_cameras") && !pnh.hasParam("depth_cameras"))
 	{
 		NODELET_ERROR("\"depth_cameras\" parameter doesn't exist "
 				"anymore! It is replaced by \"rgbd_cameras\" parameter "
 				"used when \"subscribe_rgbd\" is true");
 	}
-
+	
+	//发布map与odom之间的tf，默认为true
 	pnh.param("publish_tf",          publishTf, publishTf);
+	//map与odom之间的tf频率，默认为20Hz
 	pnh.param("tf_delay",            tfDelay, tfDelay);
 	if(pnh.hasParam("tf_prefix"))
 	{
@@ -166,11 +169,13 @@ void CoreWrapper::onInit()
 	pnh.param("wait_for_transform",  waitForTransform_, waitForTransform_);
 	pnh.param("wait_for_transform_duration",  waitForTransformDuration_, waitForTransformDuration_);
 	pnh.param("use_action_for_goal", useActionForGoal_, useActionForGoal_);
+	// 继续使用上次保存的地图数据
 	pnh.param("use_saved_map", useSavedMap_, useSavedMap_);
 	pnh.param("gen_scan",            genScan_, genScan_);
 	pnh.param("gen_scan_max_depth",  genScanMaxDepth_, genScanMaxDepth_);
 	pnh.param("gen_scan_min_depth",  genScanMinDepth_, genScanMinDepth_);
 	pnh.param("scan_cloud_max_points",  scanCloudMaxPoints_, scanCloudMaxPoints_);
+	// 生成scan的signature的参数
 	if(pnh.hasParam("scan_cloud_normal_k"))
 	{
 		ROS_WARN("rtabmap: Parameter \"scan_cloud_normal_k\" has been removed. RTAB-Map's parameter \"%s\" should be used instead. "
@@ -251,7 +256,7 @@ void CoreWrapper::onInit()
 		databasePath_ = UDirectory::currentDir(true) + databasePath_;
 	}
 #endif
-
+	// 为什么又定义了一个参数管理器
 	ParametersMap allParameters = Parameters::getDefaultParameters();
 	// remove Odom parameters
 	for(ParametersMap::iterator iter=allParameters.begin(); iter!=allParameters.end();)
@@ -268,15 +273,17 @@ void CoreWrapper::onInit()
 	uInsert(allParameters, ParametersPair(Parameters::kRGBDCreateOccupancyGrid(), "true")); // default true in ROS
 	char * rosHomePath = getenv("ROS_HOME");
 	std::string workingDir = rosHomePath?rosHomePath:UDirectory::homeDir()+"/.ros";
+	// allParameters中的workingDir已经生效为~/.ros
 	uInsert(allParameters, ParametersPair(Parameters::kRtabmapWorkingDirectory(), workingDir)); // change default to ~/.ros
 
 	// load parameters
 	loadParameters(configPath_, parameters_);
 	for(ParametersMap::iterator iter=parameters_.begin(); iter!=parameters_.end();)
 	{
+		//当前pair的key是否是Odom，是的话进行删除
 		if(iter->first.find("Odom") == 0)
 		{
-			parameters_.erase(iter++);
+			parameters_.erase(iter++);//parameters_是不包含Odom的参数集合
 		}
 		else
 		{
@@ -285,6 +292,7 @@ void CoreWrapper::onInit()
 	}
 
 	// update parameters with user input parameters (private)
+	// 用户设定的param，对默认param进行替换并进行打印
 	for(ParametersMap::iterator iter=allParameters.begin(); iter!=allParameters.end(); ++iter)
 	{
 		std::string vStr;
@@ -326,6 +334,7 @@ void CoreWrapper::onInit()
 	std::vector<std::string> argList = getMyArgv();
 	char ** argv = new char*[argList.size()];
 	bool deleteDbOnStart = false;
+	// 检测是否有--delete_db_on_start参数，有的话设置标志位
 	for(unsigned int i=0; i<argList.size(); ++i)
 	{
 		argv[i] = &argList[i].at(0);
@@ -334,6 +343,7 @@ void CoreWrapper::onInit()
 			deleteDbOnStart = true;
 		}
 	}
+	// 是否命令行带参启动，有的话进行update
 	rtabmap::ParametersMap parameters = rtabmap::Parameters::parseArguments(argList.size(), argv);
 	delete [] argv;
 	for(ParametersMap::const_iterator iter=parameters.begin(); iter!=parameters.end(); ++iter)
@@ -398,8 +408,11 @@ void CoreWrapper::onInit()
 
 	bool subscribeScan2d = false;
 	bool subscribeScan3d = false;
+	//是否订阅单线激光
 	pnh.param("subscribe_scan",      subscribeScan2d, subscribeScan2d);
+	//是否订阅多线激光
 	pnh.param("subscribe_scan_cloud", subscribeScan3d, subscribeScan3d);
+	//如果订阅了激光，并且没有设定GridFromDepth（注意map的find()方法的使用）则将GridFromDepth设定为false。栅格地图将由激光数据生成，而不是通过深度图像。
 	if((subscribeScan2d || subscribeScan3d) && parameters_.find(Parameters::kGridFromDepth()) == parameters_.end())
 	{
 		NODELET_WARN("Setting \"%s\" parameter to false (default true) as \"subscribe_scan\" or \"subscribe_scan_cloud\" is "
@@ -412,6 +425,7 @@ void CoreWrapper::onInit()
 				Parameters::kGridFromDepth().c_str());
 		parameters_.insert(ParametersPair(Parameters::kGridFromDepth(), "false"));
 	}
+	//如果订阅了激光，而且没有设定GridRangeMax，则将其设定为0=.inf
 	if((subscribeScan2d || subscribeScan3d) && parameters_.find(Parameters::kGridRangeMax()) == parameters_.end())
 	{
 		NODELET_INFO("Setting \"%s\" parameter to 0 (default %f) as \"subscribe_scan\" or \"subscribe_scan_cloud\" is true.",
@@ -419,6 +433,7 @@ void CoreWrapper::onInit()
 				Parameters::defaultGridRangeMax());
 		parameters_.insert(ParametersPair(Parameters::kGridRangeMax(), "0"));
 	}
+	//如果订阅了多线激光，设定icp中的参数
 	if(subscribeScan3d && parameters_.find(Parameters::kIcpPointToPlaneRadius()) == parameters_.end())
 	{
 		NODELET_INFO("Setting \"%s\" parameter to 0 (default %f) as \"subscribe_scan_cloud\" is true.",
@@ -426,11 +441,13 @@ void CoreWrapper::onInit()
 				Parameters::defaultIcpPointToPlaneRadius());
 		parameters_.insert(ParametersPair(Parameters::kIcpPointToPlaneRadius(), "0"));
 	}
+	//如果RegStrategy是Icp或者visIcp，
 	int regStrategy = Parameters::defaultRegStrategy();
 	Parameters::parse(parameters_, Parameters::kRegStrategy(), regStrategy);
 	if(parameters_.find(Parameters::kRGBDProximityPathMaxNeighbors()) == parameters_.end() &&
 		(regStrategy == Registration::kTypeIcp || regStrategy == Registration::kTypeVisIcp))
 	{
+		//如果订阅单线雷达，将RGBDProximityPathMaxNeighbors设为10
 		if(subscribeScan2d)
 		{
 			NODELET_WARN("Setting \"%s\" parameter to 10 (default 0) as \"subscribe_scan\" is "
@@ -443,6 +460,7 @@ void CoreWrapper::onInit()
 					Parameters::kRGBDProximityPathMaxNeighbors().c_str());
 			parameters_.insert(ParametersPair(Parameters::kRGBDProximityPathMaxNeighbors(), "10"));
 		}
+		//如果订阅单线雷达，将RGBDProximityPathMaxNeighbors设为1
 		else if(subscribeScan3d)
 		{
 			NODELET_WARN("Setting \"%s\" parameter to 1 (default 0) as \"subscribe_scan_cloud\" is "
@@ -455,13 +473,14 @@ void CoreWrapper::onInit()
 			parameters_.insert(ParametersPair(Parameters::kRGBDProximityPathMaxNeighbors(), "1"));
 		}
 	}
-
+	//"Motion estimation approach: 0:3D->3D, 1:3D->2D (PnP), 2:2D->2D (Epipolar Geometry)")
 	int estimationType = Parameters::defaultVisEstimationType();
 	Parameters::parse(parameters_, Parameters::kVisEstimationType(), estimationType);
 	int cameras = 0;
 	bool subscribeRGBD = false;
 	pnh.param("rgbd_cameras", cameras, cameras);
-	pnh.param("subscribe_rgbd", subscribeRGBD, subscribeRGBD);
+	pnh.param("subscribe_rgbd", subscribeRGBD, subscribeRGBD);//订阅深度相机的标志位，参数subscribe_depth没有用到
+	// 如果设定了订阅深度相机、相机数量大于1，运动估计强制设定为3D-3D
 	if(subscribeRGBD && cameras> 1 && estimationType>0)
 	{
 		NODELET_WARN("Setting \"%s\" parameter to 0 (%d is not supported "
@@ -474,6 +493,7 @@ void CoreWrapper::onInit()
 	}
 
 	// modify default parameters with those in the database
+	// 如果建图模式下没有设定删除上次的地图、或者是定位模式，采用地图中的所有参数
 	if(!deleteDbOnStart)
 	{
 		ParametersMap dbParameters;
@@ -500,14 +520,16 @@ void CoreWrapper::onInit()
 		}
 	}
 	ParametersMap modifiedParameters = parameters_;
-	// Add all other parameters (not copied if already exists)
+	// Add all other parameters (not copied if already exists) 
+	// Map中不能插入相同key的pair，所以这里会把缺少的默认参数进行补齐，已经存在的参数不做变动
 	parameters_.insert(allParameters.begin(), allParameters.end());
-
+	// 接受image的频率？默认为1
 	if(parameters_.find(Parameters::kRtabmapDetectionRate()) != parameters_.end())
 	{
 		Parameters::parse(parameters_, Parameters::kRtabmapDetectionRate(), rate_);
 		NODELET_INFO("RTAB-Map detection rate = %f Hz", rate_);
 	}
+	// 获取是否设定对node进行插值。如果对image进行了detection rate的过滤为0，则去订阅插值后的里程计话题。
 	if(parameters_.find(Parameters::kRtabmapCreateIntermediateNodes()) != parameters_.end())
 	{
 		Parameters::parse(parameters_, Parameters::kRtabmapCreateIntermediateNodes(), createIntermediateNodes_);
@@ -535,6 +557,7 @@ void CoreWrapper::onInit()
 			}
 		}
 	}
+	// GridGlobalMaxNodes的数量，0为无限制
 	if(parameters_.find(Parameters::kGridGlobalMaxNodes()) != parameters_.end())
 	{
 		Parameters::parse(parameters_, Parameters::kGridGlobalMaxNodes(), maxMappingNodes_);
@@ -548,7 +571,7 @@ void CoreWrapper::onInit()
 	{
 		NODELET_WARN("Node paused... don't forget to call service \"resume\" to start rtabmap.");
 	}
-
+	//删除地图
 	if(deleteDbOnStart)
 	{
 		if(UFile::erase(databasePath_) == 0)
@@ -556,7 +579,7 @@ void CoreWrapper::onInit()
 			NODELET_INFO("rtabmap: Deleted database \"%s\" (--delete_db_on_start or -d are set).", databasePath_.c_str());
 		}
 	}
-
+	//如果没有设定地图路径
 	if(databasePath_.size())
 	{
 		NODELET_INFO("rtabmap: Using database from \"%s\" (%ld MB).", databasePath_.c_str(), UFile::length(databasePath_)/(1024*1024));
@@ -565,12 +588,13 @@ void CoreWrapper::onInit()
 	{
 		NODELET_INFO("rtabmap: database_path parameter not set, the map will not be saved.");
 	}
-
+	//根据parameters_设定maps管理器的参数
 	mapsManager_.setParameters(parameters_);
 
 	// Init RTAB-Map
+	// 初始化rtabmap实例
 	rtabmap_.init(parameters_, databasePath_);
-
+	//从db中加载二维栅格地图
 	if(rtabmap_.getMemory() && useSavedMap_)
 	{
 		float xMin, yMin, gridCellSize;
@@ -624,17 +648,19 @@ void CoreWrapper::onInit()
 
 	int optimizeIterations = 0;
 	Parameters::parse(parameters_, Parameters::kOptimizerIterations(), optimizeIterations);
+	//如果设定了发布map->odom的坐标变换，而且设置了全局图优化，开启线程
 	if(publishTf && optimizeIterations != 0)
 	{
 		tfThreadRunning_ = true;
 		transformThread_ = new boost::thread(boost::bind(&CoreWrapper::publishLoop, this, tfDelay, tfTolerance));
 	}
+	//如果只设定了map->odom的坐标变换，而禁用了全局图优化，可以采用map_optimize节点进程
 	else if(publishTf)
 	{
 		NODELET_WARN("Graph optimization is disabled (%s=0), the tf between frame \"%s\" and odometry frame will not be published. You can safely ignore this warning if you are using map_optimizer node.",
 				Parameters::kOptimizerIterations().c_str(), mapFrameId_.c_str());
 	}
-
+	//继承父类CommonDataSubscriber的方法，在父类中兜转了一圈后，最后的实现是在后面的commonDepthCallback()
 	setupCallbacks(nh, pnh, getName()); // do it at the end
 	if(!this->isDataSubscribed())
 	{
@@ -714,6 +740,7 @@ void CoreWrapper::onInit()
 	}
 
 	// set public parameters
+	//将所有的参数发布到param server上
 	nh.setParam("is_rtabmap_paused", paused_);
 	for(ParametersMap::iterator iter=parameters_.begin(); iter!=parameters_.end(); ++iter)
 	{
@@ -890,6 +917,7 @@ void CoreWrapper::defaultCallback(const sensor_msgs::ImageConstPtr & imageMsg)
 	}
 }
 
+// 没有处理里程计中的速度信息？？需要订阅odomInfo话题才能够获取速度信息？？
 bool CoreWrapper::odomUpdate(const nav_msgs::OdometryConstPtr & odomMsg, ros::Time stamp)
 {
 	if(!paused_)
@@ -913,6 +941,7 @@ bool CoreWrapper::odomUpdate(const nav_msgs::OdometryConstPtr & odomMsg, ros::Ti
 			}
 			else
 			{
+				// 还是用tf的数据替换话题中的数据？
 				odom = odomTF;
 			}
 		}
@@ -957,6 +986,7 @@ bool CoreWrapper::odomUpdate(const nav_msgs::OdometryConstPtr & odomMsg, ros::Ti
 		}
 
 		// Throttle
+		// 过滤并设置插值的标志位
 		bool ignoreFrame = false;
 		if(stamp.toSec() == 0.0)
 		{
@@ -1032,6 +1062,7 @@ bool CoreWrapper::odomTFUpdate(const ros::Time & stamp)
 			{
 				lastPoseIntermediate_ = true;
 			}
+			// 如果设置了createIntermediateNode为false，直接返回false，结束本次回调
 			else
 			{
 				return false;
@@ -1062,6 +1093,11 @@ void CoreWrapper::commonDepthCallback(
 		const std::vector<cv::Mat> & localDescriptors)
 {
 	std::string odomFrameId = odomFrameId_;
+	// 如果订阅了里程计话题（但最终还是用tf的数据）
+	// 主要处理这三个变量：
+	// lastPoseIntermediate_ 
+	// lastPose_ 
+	// lastPoseStamp_ 
 	if(odomMsg.get())
 	{
 		odomFrameId = odomMsg->header.frame_id;
@@ -1084,8 +1120,10 @@ void CoreWrapper::commonDepthCallback(
 			return;
 		}
 	}
+	// 如果查询tf
 	else if(!scan2dMsg.ranges.empty())
 	{
+		// 结束本次回调
 		if(!odomTFUpdate(scan2dMsg.header.stamp))
 		{
 			return;
@@ -1120,10 +1158,10 @@ void CoreWrapper::commonDepthCallback(
 void CoreWrapper::commonDepthCallbackImpl(
 		const std::string & odomFrameId,
 		const rtabmap_ros::UserDataConstPtr & userDataMsg,
-		const std::vector<cv_bridge::CvImageConstPtr> & imageMsgs,
-		const std::vector<cv_bridge::CvImageConstPtr> & depthMsgs,
-		const std::vector<sensor_msgs::CameraInfo> & cameraInfoMsgs,
-		const sensor_msgs::LaserScan& scan2dMsg,
+		const std::vector<cv_bridge::CvImageConstPtr> & imageMsgs,// 肯定有数据
+		const std::vector<cv_bridge::CvImageConstPtr> & depthMsgs,// 肯定有数据
+		const std::vector<sensor_msgs::CameraInfo> & cameraInfoMsgs,// 肯定有数据
+		const sensor_msgs::LaserScan& scan2dMsg,// 订阅了雷达话题时，有数据
 		const sensor_msgs::PointCloud2& scan3dMsg,
 		const rtabmap_ros::OdomInfoConstPtr& odomInfoMsg,
 		const std::vector<rtabmap_ros::GlobalDescriptor> & globalDescriptorMsgs,
@@ -1131,6 +1169,8 @@ void CoreWrapper::commonDepthCallbackImpl(
 		const std::vector<std::vector<rtabmap_ros::Point3f> > & localPoints3d,
 		const std::vector<cv::Mat> & localDescriptors)
 {
+	// 对数据进行处理，包括:1、校验rgb图像格式、深度图像格式、多个摄像头的image拼接；2、压缩深度图像；3、对scan数据的处理（与里程计对齐、。。。）
+	// 1、校验rgb图像格式、深度图像格式、多个摄像头的image拼接；
 	cv::Mat rgb;
 	cv::Mat depth;
 	std::vector<rtabmap::CameraModel> cameraModels;
@@ -1150,7 +1190,7 @@ void CoreWrapper::commonDepthCallbackImpl(
 		NODELET_ERROR("Could not convert rgb/depth msgs! Aborting rtabmap update...");
 		return;
 	}
-
+	// 压缩深度图像格式？Save depth image into 16 bits format to reduce memory used. Warning: values over ~65 meters are ignored (maximum 65535 millimeters
 	UASSERT(uContains(parameters_, rtabmap::Parameters::kMemSaveDepth16Format()));
 	if(!depth.empty() && depth.type() == CV_32FC1 && uStr2Bool(parameters_.at(Parameters::kMemSaveDepth16Format())))
 	{
@@ -1168,6 +1208,7 @@ void CoreWrapper::commonDepthCallbackImpl(
 
 	LaserScan scan;
 	bool genMaxScanPts = 0;
+	// 单线雷达、多线雷达同时有数据？深度图像转点云？genScan_默认为fasle
 	if(!scan2dMsg.ranges.empty() && !scan3dMsg.data.empty() && !depth.empty() && genScan_)
 	{
 		pcl::PointCloud<pcl::PointXYZ>::Ptr scanCloud2d(new pcl::PointCloud<pcl::PointXYZ>);
@@ -1179,6 +1220,7 @@ void CoreWrapper::commonDepthCallbackImpl(
 		genMaxScanPts += depth.cols;
 		scan = LaserScan(rtabmap::util3d::laserScan2dFromPointCloud(*scanCloud2d), 0, genScanMaxDepth_, LaserScan::kXY);
 	}
+	// 如果有单线雷达数据，做处理：laser对odom的位姿根据里程计信息进行纠正
 	else if(!scan2dMsg.ranges.empty())
 	{
 		if(!rtabmap_ros::convertScanMsg(
@@ -1236,6 +1278,7 @@ void CoreWrapper::commonDepthCallbackImpl(
 			rgb,
 			depth,
 			cameraModels,
+			// 如果位姿是经过插值得来的；如果位姿是未经过插值
 			lastPoseIntermediate_?-1:imageMsgs[0]->header.seq,
 			rtabmap_ros::timestampFromROS(lastPoseStamp_),
 			userData);
@@ -1250,13 +1293,13 @@ void CoreWrapper::commonDepthCallbackImpl(
 	{
 		data.setGlobalDescriptors(rtabmap_ros::globalDescriptorsFromROS(globalDescriptorMsgs));
 	}
-
-	process(lastPoseStamp_,
-			data,
-			lastPose_,
-			odomFrameId,
-			covariance_,
-			odomInfo);
+	// 重要的入口
+	process(lastPoseStamp_,// 最新的有效的位姿时间戳
+			data,// 处理后的传感器数据，scan rgb depth
+			lastPose_,// 最新的有效的位姿
+			odomFrameId,// 里程计坐标系id
+			covariance_,// 里程计方差
+			odomInfo);// 暂时忽略
 	covariance_ = cv::Mat();
 }
 
@@ -1586,7 +1629,7 @@ void CoreWrapper::commonLaserScanCallback(
 			scan.localTransform()*Transform(0,0,1,0, -1,0,0,0, 0,-1,0,0),
 			0,
 			cv::Size(4,3));
-
+	//纯激光时，构建fake的rgb、depth、camera数据。
 	SensorData data(
 			scan,
 			rgb,
@@ -1685,9 +1728,9 @@ void CoreWrapper::commonOdomCallback(
 }
 
 void CoreWrapper::process(
-		const ros::Time & stamp,
-		SensorData & data,
-		const Transform & odom,
+		const ros::Time & stamp,// 最新的有效的位姿时间戳
+		SensorData & data,	// 处理后的传感器数据
+		const Transform & odom,// 最新的有效的位姿
 		const std::string & odomFrameId,
 		const cv::Mat & odomCovariance,
 		const OdometryInfo & odomInfo)
@@ -1696,8 +1739,11 @@ void CoreWrapper::process(
 	if(rtabmap_.isIDsGenerated() || data.id() > 0)
 	{
 		// Add intermediate nodes?
+		// ROS_INFO("We test");
+		// interOdoms_为空，不执行for loop
 		for(std::list<std::pair<nav_msgs::Odometry, rtabmap_ros::OdomInfo> >::iterator iter=interOdoms_.begin(); iter!=interOdoms_.end();)
 		{
+			ROS_INFO("Got test loop");
 			if(iter->first.header.stamp < lastPoseStamp_)
 			{
 				Transform interOdom = rtabmap_ros::transformFromPoseMsg(iter->first.pose.pose);
@@ -1794,9 +1840,12 @@ void CoreWrapper::process(
 		}
 		data.setGroundTruth(groundTruthPose);
 
-		//global pose
+		// global pose
+		// ROS_INFO("We test stamp");
+		// 如果没有订阅globalPose asys话题，这里的时间戳在构造函数中被初始化为0
 		if(!globalPose_.header.stamp.isZero())
 		{
+			// ROS_INFO("global pose stamp is not zero");
 			// assume sensor is fixed
 			Transform sensorToBase = rtabmap_ros::getTransform(
 					globalPose_.header.frame_id,
@@ -1935,9 +1984,10 @@ void CoreWrapper::process(
 			externalStats.insert(rtabmapROSStats_.begin(), rtabmapROSStats_.end());
 			rtabmapROSStats_.clear();
 		}
-
+		// 从这里开始调用rtabmap_中的方法
 		if(rtabmap_.process(data, odom, covariance, odomVelocity, externalStats))
 		{
+			// timer在构建时记录start时间点，运行一次ticks()记录从构建到当前的间隔，并重新记录start时间点
 			timeRtabmap = timer.ticks();
 			mapToOdomMutex_.lock();
 			mapToOdom_ = rtabmap_.getMapCorrection();
@@ -2122,6 +2172,7 @@ void CoreWrapper::process(
 		{
 			timeRtabmap = timer.ticks();
 		}
+		// 最后的状态日志打印
 		NODELET_INFO("rtabmap (%d): Rate=%.2fs, Limit=%.3fs, RTAB-Map=%.4fs, Maps update=%.4fs pub=%.4fs (local map=%d, WM=%d)",
 				rtabmap_.getLastLocationId(),
 				rate_>0?1.0f/rate_:0,

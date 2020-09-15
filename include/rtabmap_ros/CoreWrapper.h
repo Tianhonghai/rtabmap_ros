@@ -236,6 +236,7 @@ private:
 	rtabmap::Transform currentMetricGoal_;
 	rtabmap::Transform lastPublishedMetricGoal_;
 	bool latestNodeWasReached_;
+	//Parameter管理器包含了所有的core参数
 	rtabmap::ParametersMap parameters_;
 	std::map<std::string, float> rtabmapROSStats_;
 
@@ -262,6 +263,7 @@ private:
 	rtabmap::Transform mapToOdom_;
 	boost::mutex mapToOdomMutex_;
 
+	//Map管理，cloudmap, girdmap, scanmap, octomap
 	MapsManager mapsManager_;
 
 	ros::Publisher infoPub_;

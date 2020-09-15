@@ -10,6 +10,7 @@ Panels:
         - /Global Map1/Planner1
         - /Local Map1/Costmap1
         - /Local Map1/Planner1
+        - /mapGraph1
       Splitter Ratio: 0.5
     Tree Height: 796
   - Class: rviz/Selection
@@ -571,8 +572,13 @@ Visualization Manager:
         mapGraph: true
         mapPath: true
         octomap:
-          "": true
           Value: true
+          octomap_empty_space: true
+          octomap_global_frontier_space: true
+          octomap_grid: true
+          octomap_ground: true
+          octomap_obstacles: true
+          octomap_occupied_space: true
         scan_map: true
         teb_poses: true
       Zoom Factor: 1
@@ -646,7 +652,7 @@ Visualization Manager:
       Value: false
     - Alpha: 1
       Class: rtabmap_ros/MapGraph
-      Enabled: false
+      Enabled: true
       Global loop closure: 255; 0; 0
       Local loop closure: 255; 255; 0
       Merged neighbor: 255; 170; 0
@@ -655,7 +661,7 @@ Visualization Manager:
       Topic: /rtabmap/mapGraph
       Unreliable: false
       User: 255; 0; 0
-      Value: false
+      Value: true
       Virtual: 255; 0; 255
     - Alpha: 1
       Buffer Length: 1
@@ -962,25 +968,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 22.36199951171875
+      Distance: 11.105814933776855
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.35952597856521606
-        Y: 3.7963695526123047
-        Z: -1.9495338201522827
+        X: 1.4734004735946655
+        Y: -0.8253851532936096
+        Z: 1.2954692840576172
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 0.9397960901260376
       Target Frame: base_footprint
       Value: Orbit (rviz)
-      Yaw: 4.904096603393555
+      Yaw: 3.845917224884033
     Saved: ~
 Window Geometry:
   Camera:

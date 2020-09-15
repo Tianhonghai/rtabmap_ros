@@ -1675,6 +1675,7 @@ bool convertRGBDMsgs(
 		// initialize
 		if(rgb.empty())
 		{
+			// 将多个摄像头的image队列重组成一个矩阵
 			rgb = cv::Mat(imageHeight, imageWidth*cameraCount, ptrImage->image.type());
 		}
 		if(ptrImage->image.type() == rgb.type())
@@ -1694,6 +1695,7 @@ bool convertRGBDMsgs(
 
 			if(depth.empty())
 			{
+				// 将多个摄像头的depth队列重组成一个矩阵
 				depth = cv::Mat(depthHeight, depthWidth*cameraCount, subDepth.type());
 			}
 
@@ -1825,7 +1827,7 @@ bool convertScanMsg(
 	{
 		return false;
 	}
-
+	// 从tf中查询scan对odom的坐标
 	rtabmap::Transform scanLocalTransform = getTransform(
 			frameId,
 			scan2dMsg.header.frame_id,
@@ -1870,6 +1872,7 @@ bool convertScanMsg(
 					"stamp is %fs. The laser scan pose will not be synchronized with odometry.", scan2dMsg.header.stamp.toSec(), odomStamp.toSec());
 		}
 		else
+		// 根据里程计的位姿变化，纠正scan对odom的位姿
 		{
 			//ROS_WARN("scan correction = %s (time diff=%fs)", sensorT.prettyPrint().c_str(), fabs(scan2dMsg->header.stamp.toSec()-odomStamp.toSec()));
 			scanLocalTransform = sensorT * scanLocalTransform;

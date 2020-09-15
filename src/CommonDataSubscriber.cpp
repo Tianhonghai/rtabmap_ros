@@ -29,16 +29,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace rtabmap_ros {
 
-CommonDataSubscriber::CommonDataSubscriber(bool gui) :
+CommonDataSubscriber::CommonDataSubscriber(bool gui) ://CoreWrapper中进行实例化时默认为false
 		queueSize_(10),
 		approxSync_(true),
 		warningThread_(0),
 		callbackCalled_(false),
-		subscribedToDepth_(!gui),
+		subscribedToDepth_(!gui),//默认订阅Depth image
 		subscribedToStereo_(false),
-		subscribedToRGB_(!gui),
+		subscribedToRGB_(!gui),//默认订阅RGB image
 		subscribedToOdom_(false),
-		subscribedToRGBD_(false),
+		subscribedToRGBD_(false),//订阅rgbd_sync发布的rgbd_image话题 msg type is rtabmap_ros/RGBDimage
 		subscribedToScan2d_(false),
 		subscribedToScan3d_(false),
 		subscribedToScanDescriptor_(false),
@@ -396,6 +396,7 @@ void CommonDataSubscriber::setupCallbacks(
 		ROS_WARN("rtabmap: Parameters subscribe_stereo and subscribe_rgb cannot be true at the same time. Parameter subscribe_rgb is set to false.");
 		subscribedToRGB_ = false;
 	}
+	// subscribe_depth 与 subscribe_rgbd 互斥
 	if(subscribedToDepth_ && subscribedToRGBD_)
 	{
 		ROS_WARN("rtabmap: Parameters subscribe_depth and subscribe_rgbd cannot be true at the same time. Parameter subscribe_depth is set to false.");
@@ -473,10 +474,22 @@ void CommonDataSubscriber::setupCallbacks(
 	ROS_INFO("%s: subscribe_scan = %s", name.c_str(), subscribeScan2d?"true":"false");
 	ROS_INFO("%s: subscribe_scan_cloud = %s", name.c_str(), subscribeScan3d?"true":"false");
 	ROS_INFO("%s: subscribe_scan_descriptor = %s", name.c_str(), subscribeScanDesc?"true":"false");
-	ROS_INFO("%s: queue_size    = %d", name.c_str(), queueSize_);
-	ROS_INFO("%s: approx_sync   = %s", name.c_str(), approxSync_?"true":"false");
-
+	ROS_INFO("%s: queue_size    = %d", name.c_str(), queueSize_);//构造函数中默认为10
+	ROS_INFO("%s: approx_sync   = %s", name.c_str(), approxSync_?"true":"false");//构造函数中默认为true
+	
+	// params中，如果设置了subscribe_odom标志位、而且坐标系odom_frame_id为空，才会订阅里程计话题，否则直接查询tf
 	subscribedToOdom_ = odomFrameId.empty() && subscribeOdom;
+
+	/**
+	 * @brief NOTE 从这里开始，根据各个标志位，进入impl文件夹下面不同的cpp中，不同的成员函数，包括：
+	 * setupDepthCallbacks()
+	 * setupStereoCallbacks()
+	 * setupRGBCallbacks()
+	 * setupRGBDCallbacks()
+	 * setupScanCallbacks()
+	 * setupOdomCallbacks()
+	 */
+
 	if(subscribedToDepth_)
 	{
 		setupDepthCallbacks(

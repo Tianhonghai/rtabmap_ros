@@ -701,6 +701,7 @@ void CommonDataSubscriber::setupDepthCallbacks(
 			}
 			else
 			{
+				//depthScan2dApproximateSync_->registerCallback(boost::bind(&CommonDataSubscriber::depthScan2dCallback, this, _1, _2, _3, _4));
 				SYNC_DECL4(depthScan2d, approxSync, queueSize, imageSub_, imageDepthSub_, cameraInfoSub_, scanSub_);
 			}
 		}

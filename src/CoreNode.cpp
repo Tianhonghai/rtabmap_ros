@@ -44,6 +44,7 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "rtabmap");
 
 	nodelet::V_string nargv;
+	// 带有--params 参数运行时，打印所有的参数信息
 	for(int i=1;i<argc;++i)
 	{
 		if(strcmp(argv[i], "--params") == 0 || strcmp(argv[i], "--params-all") == 0)
@@ -88,10 +89,10 @@ int main(int argc, char** argv)
 		nargv.push_back(argv[i]);
 	}
 
-	nodelet::Loader nodelet;
+	nodelet::Loader nodelet; //初始化一个Loader类型的实例，默认的构造函数：240，构造一个成员变量impl_
 	nodelet::M_string remap(ros::names::getRemappings());
 	std::string nodelet_name = ros::this_node::getName();
-	nodelet.load(nodelet_name, "rtabmap_ros/rtabmap", remap, nargv);
+	nodelet.load(nodelet_name, "rtabmap_ros/rtabmap", remap, nargv); //加载名为rtabmap_ros/rtabmap类型的plugin，类型是CoreWrapper类，行278impl_执行creat_instance_()，子类的构造函数(CoreWrapper())得到一个nodelet实例指针p。行318执行init()，也就是执行nodelet的成员函数init(),其中的this->oninit()是nodelet的纯虚函数，就是需要重载的方法，最终进行实现。
 	ROS_INFO("rtabmap %s started...", RTABMAP_VERSION);
 	ros::spin();
 

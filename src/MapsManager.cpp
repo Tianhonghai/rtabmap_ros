@@ -317,7 +317,7 @@ void MapsManager::backwardCompatibilityParameters(ros::NodeHandle & pnh, Paramet
 void MapsManager::setParameters(const rtabmap::ParametersMap & parameters)
 {
 	parameters_ = parameters;
-	occupancyGrid_->parseParameters(parameters_);
+	occupancyGrid_->parseParameters(parameters_);//主要根据Grid的参数进行设定
 
 #ifdef WITH_OCTOMAP_MSGS
 #ifdef RTABMAP_OCTOMAP
